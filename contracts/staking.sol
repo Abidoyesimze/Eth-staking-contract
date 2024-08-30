@@ -68,5 +68,19 @@ contract staking {
 
      payable(msg.sender).transfer(totalAmount);
 
-     emit()
+     emit Withdrawn(msg.sender, staker.amount, reward);
 }
+
+ functionWithdrawContractBalance() external onlyOwner{
+    payable(owner).transfer(this).balance;
+ }
+
+ receive() external payable{}   
+
+ function updateRewardRate(uint256 _newRate) external onlyOwner{
+    rewardRate = _newRate;
+ }
+
+ function updateStakingDuration(uint256 _newStakingDuration) external onlyOwner{
+    stakingDuration = _newStakingDuration;
+ }
