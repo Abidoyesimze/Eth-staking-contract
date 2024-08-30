@@ -60,5 +60,13 @@ contract staking {
      require(!stakers.hasWithdrawn, "Already withdrawn");
 
      uint reward = calculateReward[msg.sender];
-     uint totalAmount = 
+     uint totalAmount = staker.amount + reward;
+
+     stakers.hasWithdrawn = true;
+     
+     staker.amount = 0;
+
+     payable(msg.sender).transfer(totalAmount);
+
+     emit()
 }
