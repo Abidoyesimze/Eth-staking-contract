@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-contract Staking {
+
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+contract ERC20Staking is ERC20 {
     error AccessRestricted();
     error ZeroEthDetected();
     error AddressAlreadyExists();
     error StakeDurationNotEnded();
     error AlreadyWithdrawn();
-    error insufficientAllowance();
 
     struct Staker {
         uint256 amount;
@@ -16,9 +18,9 @@ contract Staking {
     }
 
     mapping(address => Staker) public stakers;
-    IERC20 public stakingToken;
     uint256 public rewardRate;
     uint256 public stakingDuration;
+    uint256 public stakingToken;
     address public owner;
 
     event Staked(address indexed user, uint256 amount, uint256 time);
@@ -38,43 +40,38 @@ contract Staking {
         _;
     }
 
-    constructor(address _stakingToken,
-        uint256 _rewardRate,
-        uint256 _stakingDuration) payable {
+    constructor(uint256 _stakingToken, uint256 _rewardRate, uint256 _stakingDuration) ERC20("StakingToken", "STAKING") {
+        
+
         owner = msg.sender;
-        stakingToken = IERC20(_stakingToken);
         rewardRate = _rewardRate;
         stakingDuration = _stakingDuration;
+        stakingToken = _stakingToken;
     }
 
-    function stake() external payable {
-        if (msg.value <= 0) {
+    function stake(uint256 amount) external {
+        if (amount == 0) {
             revert ZeroEthDetected();
         }
         if (stakers[msg.sender].amount > 0) {
             revert AddressAlreadyExists();
         }
 
-        uint256 allowance = stakingToken.allowance(msg.sender, address(this));
-        if (allowance < _amount) {
-            revert InsufficientAllowance();
-        }
-
-        stakingToken.transferFrom(msg.sender, address(this), _amount);
+        _transfer(msg.sender, address(this), amount);
 
         stakers[msg.sender] = Staker({
-            amount: msg.value,
+            amount: amount,
             startTime: block.timestamp,
             hasWithdrawn: false
         });
 
-        // emit Staked(msg.sender, msg.value, block.timestamp);
+        emit Staked(msg.sender, amount, block.timestamp);
     }
 
     function calculateReward(address _staker) public view returns (uint256) {
         Staker memory staker = stakers[_staker];
         uint256 stakedTime = block.timestamp - staker.startTime;
-        
+
         if (stakedTime < stakingDuration) {
             revert StakeDurationNotEnded();
         }
@@ -95,13 +92,13 @@ contract Staking {
         staker.hasWithdrawn = true;
         staker.amount = 0;
 
-        payable(msg.sender).transfer(totalAmount);
+        _transfer(address(this), msg.sender, totalAmount);
 
-        emit Withdrawn(msg.sender, staker.amount, reward);
+        emit Withdrawn(msg.sender, totalAmount, reward);
     }
 
     function withdrawContractBalance() external onlyOwner {
-        stakingToken.transfer(owner, stakingToken.balanceOf(address(this)));
+       
     }
 
     function updateRewardRate(uint256 _newRate) external onlyOwner {
@@ -110,9 +107,5 @@ contract Staking {
 
     function updateStakingDuration(uint256 _newStakingDuration) external onlyOwner {
         stakingDuration = _newStakingDuration;
-    }
-
-    receive() external payable {
-        stakers[msg.sender].amount += msg.value;
     }
 }
